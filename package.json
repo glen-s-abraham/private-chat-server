@@ -1,0 +1,24 @@
+{
+  "name": "private-chat-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "npx nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glen-s-abraham/private-chat-server.git"
+  },
+  "author": "glen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/glen-s-abraham/private-chat-server/issues"
+  },
+  "homepage": "https://github.com/glen-s-abraham/private-chat-server#readme",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4"
+  }
+}
