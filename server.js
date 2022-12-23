@@ -1,30 +1,27 @@
-const express = require("express");
+const httpServer = require("http").createServer();
+const Redis = require("ioredis");
+const redisClient = new Redis();
 const { v4: uuidv4 } = require('uuid');
 require("dotenv");
-
-const { InMemorySessionStore } = require("./sessionStore");
-const sessionStore = new InMemorySessionStore();
-
-const app = express();
-const port = process.env.SRV_PORT || 3000;
-
-app.get("/ping", (req, res) => res.send("alive"));
-
-const server = app.listen(port, () =>
-  console.log(`App listening on port ${port}`)
-);
-
-const io = require("socket.io")(server, {
+const io = require("socket.io")(httpServer, {
   cors: {
     origin: "http://localhost:8080",
   },
+  adapter: require("socket.io-redis")({
+    pubClient: redisClient,
+    subClient: redisClient.duplicate(),
+  }),
 });
+const { setupWorker } = require("@socket.io/sticky");
 
-io.use((socket, next) => {
+const { RedisSessionStore } = require("./sessionStore");
+const sessionStore = new RedisSessionStore(redisClient);
+
+io.use(async(socket, next) => {
   const sessionID = socket.handshake.auth.sessionID;
   if (sessionID) {
     // find existing session
-    const session = sessionStore.findSession(sessionID);
+    const session = await sessionStore.findSession(sessionID);
     if (session) {
       socket.sessionID = sessionID;
       socket.userID = session.userID;
@@ -43,7 +40,7 @@ io.use((socket, next) => {
   next();
 });
 
-io.on("connection", (socket) => {
+io.on("connection", async(socket) => {
 
   sessionStore.saveSession(socket.sessionID, {
     userID: socket.userID,
@@ -60,7 +57,8 @@ io.on("connection", (socket) => {
   socket.join(socket.userID);
   //send down list of influencers instead.
   const users = [];
-  sessionStore.findAllSessions().forEach((session) => {
+  const sessions = await sessionStore.findAllSessions();
+  sessions.forEach((session) => {
     users.push({
       userID: session.userID,
       username: session.username,
@@ -81,4 +79,20 @@ io.on("connection", (socket) => {
       from: socket.username,
     });
   });
+  socket.on("disconnect", async () => {
+    const matchingSockets = await io.in(socket.userID).allSockets();
+    const isDisconnected = matchingSockets.size === 0;
+    if (isDisconnected) {
+      // notify other users
+      socket.broadcast.emit("user disconnected", socket.userID);
+      // update the connection status of the session
+      sessionStore.saveSession(socket.sessionID, {
+        userID: socket.userID,
+        username: socket.username,
+        connected: false,
+      });
+    }
+  });
 });
+
+setupWorker(io);

@@ -4,6 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
+    "start-cluster": "npx nodemon cluster.js",
     "start": "npx nodemon server.js"
   },
   "repository": {
@@ -17,9 +18,12 @@
   },
   "homepage": "https://github.com/glen-s-abraham/private-chat-server#readme",
   "dependencies": {
+    "@socket.io/sticky": "^1.0.2",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "ioredis": "^5.2.4",
     "socket.io": "^4.5.4",
+    "socket.io-redis": "^6.1.1",
     "uuid": "^9.0.0"
   }
 }
